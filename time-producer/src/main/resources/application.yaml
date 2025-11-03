@@ -1,0 +1,40 @@
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: ${KAFKA_PRODUCER_ACKS:all}
+      batch-size: ${KAFKA_PRODUCER_BATCH_SIZE:16384}
+      buffer-memory: ${KAFKA_PRODUCER_BUFFER_MEMORY:33554432}
+      compression-type: ${KAFKA_PRODUCER_COMPRESSION_TYPE:gzip}
+      retries: ${KAFKA_PRODUCER_RETRIES:10}
+      properties:
+        enable.idempotence: ${KAFKA_PRODUCER_IDEMPOTENCE:true}
+        max.in.flight.requests.per.connection: ${KAFKA_PRODUCER_MAX_IN_FLIGHT:5}
+        retry.backoff.ms: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS:1000}
+        request.timeout.ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:30000}
+        delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:60000}
+        linger.ms: ${KAFKA_PRODUCER_LINGER_MS:10}
+
+        # JSON Serializer Configuration
+        spring.json.add.type.headers: ${KAFKA_JSON_TYPE_HEADERS:false}
+        spring.json.type.mapping: ${KAFKA_JSON_TYPE_MAPPING:timeRecordEvent:com.example.timerecording.dto.TimeRecordEvent}
+
+    # SSL/Security Configuration (optional)
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      ssl.truststore.location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:}
+      ssl.truststore.password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:}
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+
+# Custom Kafka Topics
+app:
+  kafka:
+    topics:
+      time-records: ${KAFKA_TOPIC_TIME_RECORDS:time-records}
+      time-records-dlt: ${KAFKA_TOPIC_TIME_RECORDS_DLT:time-records-dlt}
+    producer:
+      id-prefix: ${KAFKA_PRODUCER_ID_PREFIX:time-service}
