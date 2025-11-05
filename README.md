@@ -8,15 +8,18 @@
 
 ### Запуск всего стека
 ```bash
-docker compose up -d
+docker-compose build --no-cache
+```
+```bash
+docker-compose up -d
 ```
 Проверить состояние:
 ```bash
-docker compose ps
+docker-compose ps
 ```
 Остановить:
 ```bash
-docker compose down
+docker-compose down
 ```
 
 ---
