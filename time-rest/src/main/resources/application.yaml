@@ -1,1 +1,20 @@
-spring.application.name=time-rest
+logging:
+  level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.leon: ${LOGGING_LEVEL_APP:DEBUG}
+
+spring:
+  application:
+    name: time-rest
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/timedb}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: ${SPRING_JPA_FORMAT_SQL:false}

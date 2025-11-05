@@ -1,35 +1,40 @@
 version: "3.9"
 
 services:
-  zookeeper:
-    image: bitnami/zookeeper:latest
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    container_name: kafka-ui
     ports:
-      - "2181:2181"
+      - "8083:8080"
     environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 40s
+      KAFKA_CLUSTERS_0_NAME: "local"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:9092"
+    depends_on:
+      - kafka
 
   kafka:
-    image: bitnami/kafka:latest
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    hostname: kafka
     ports:
       - "9092:9092"
     environment:
-      - KAFKA_BROKER_ID=1
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
-      - ALLOW_PLAINTEXT_LISTENER=yes
-      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
-    depends_on:
-      zookeeper:
-        condition: service_healthy
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     healthcheck:
-      test: ["CMD", "kafka-topics.sh", "--list", "--bootstrap-server", "localhost:9092"]
+      test: ["CMD-SHELL","kafka-topics --list --bootstrap-server localhost:9092 || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -50,49 +55,46 @@ services:
       retries: 5
       start_period: 30s
 
-  time-service:
-    build: ./time-service
+  time-producer:
+    build: ./time-producer
     ports:
       - "8081:8080"
     environment:
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - SPRING_PROFILES_ACTIVE=docker
+      - KAFKA_TOPIC_TIME_RECORDS=time-records
+      - KAFKA_PRODUCER_ID_PREFIX=time-service
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_APP=DEBUG
     depends_on:
       kafka:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
     restart: unless-stopped
 
-  db-writer-service:
-    build: ./db-writer-service
+  time-consumer:
+    build: ./time-consumer
     ports:
       - "8082:8080"
     environment:
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_CONCURRENCY=1
+      - KAFKA_TOPIC_TIME_RECORDS=time-records
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/timedb
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password
+      - DB_MONITOR_INTERVAL_MS=5000
       - SPRING_PROFILES_ACTIVE=docker
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_APP=DEBUG
     depends_on:
       kafka:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
     restart: unless-stopped
 
-  api-gateway:
-    build: ./api-gateway
+  time-rest:
+    build: ./time-rest
     ports:
       - "8080:8080"
     environment:
@@ -100,13 +102,9 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password
       - SPRING_PROFILES_ACTIVE=docker
+      - LOGGING_LEVEL_ROOT=INFO
+      - LOGGING_LEVEL_APP=DEBUG
     depends_on:
       postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
     restart: unless-stopped

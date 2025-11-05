@@ -18,5 +18,5 @@ public class TimeEventEntity {
     @Column(nullable = false,
             updatable = false,
             unique = true)
-    private LocalDateTime createdAt;
+    private LocalDateTime timestamp;
 }

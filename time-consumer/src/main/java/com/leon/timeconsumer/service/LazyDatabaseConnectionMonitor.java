@@ -1,8 +1,10 @@
 package com.leon.timeconsumer.service;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -15,54 +17,34 @@ import java.sql.Statement;
 public class LazyDatabaseConnectionMonitor {
 
     private final DataSource dataSource;
-    private final Object connectionMonitor = new Object();
     private volatile boolean isDatabaseAvailable = true;
-    private volatile boolean isMonitoring = false;
     private Thread monitorThread;
+    @Value("${app.db.monitor-interval-ms:5000}")
+    private long monitorIntervalMs;
 
     public LazyDatabaseConnectionMonitor(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
     public boolean isDatabaseAvailable() {
-        if (!isMonitoring) {
-            return checkDatabaseConnection();
-        }
         return isDatabaseAvailable;
     }
 
-    public void waitForDatabaseRecovery() throws InterruptedException {
-        startMonitoring();
-
-        synchronized (connectionMonitor) {
-            while (!isDatabaseAvailable) {
-                connectionMonitor.wait(30000); // Ждем до 30 секунд
-            }
-        }
-    }
-
-    private synchronized void startMonitoring() {
-        if (isMonitoring) return;
-
-        isMonitoring = true;
+    @PostConstruct
+    private void startMonitoring() {
         monitorThread = new Thread(() -> {
-            while (!Thread.currentThread().isInterrupted() && isMonitoring) {
+            while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    boolean previousState = isDatabaseAvailable;
-                    isDatabaseAvailable = checkDatabaseConnection();
-
-                    if (!previousState && isDatabaseAvailable) {
-                        log.info("Database is back online! Notifying all waiting threads");
-                        synchronized (connectionMonitor) {
-                            connectionMonitor.notifyAll();
+                    boolean current = checkDatabaseConnection();
+                    if (isDatabaseAvailable != current) {
+                        isDatabaseAvailable = current;
+                        if (current) {
+                            log.info("Database is back online");
+                        } else {
+                            log.warn("Database connection lost");
                         }
-                        stopMonitoring(); // Выключаем мониторинг когда БД восстановилась
-                    } else if (previousState && !isDatabaseAvailable) {
-                        log.warn("Database connection lost! Starting active monitoring");
                     }
-
-                    Thread.sleep(5000);
-
+                    Thread.sleep(monitorIntervalMs);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -72,19 +54,10 @@ public class LazyDatabaseConnectionMonitor {
             }
             log.info("Database monitoring stopped");
         });
-
         monitorThread.setDaemon(true);
         monitorThread.setName("db-connection-monitor");
         monitorThread.start();
-        log.info("Database monitoring started");
-    }
-
-    private synchronized void stopMonitoring() {
-        isMonitoring = false;
-        if (monitorThread != null) {
-            monitorThread.interrupt();
-            monitorThread = null;
-        }
+        log.info("Database monitoring started (interval {} ms)", monitorIntervalMs);
     }
 
     private boolean checkDatabaseConnection() {
@@ -100,6 +73,9 @@ public class LazyDatabaseConnectionMonitor {
 
     @PreDestroy
     public void destroy() {
-        stopMonitoring();
+        if (monitorThread != null) {
+            monitorThread.interrupt();
+            monitorThread = null;
+        }
     }
 }

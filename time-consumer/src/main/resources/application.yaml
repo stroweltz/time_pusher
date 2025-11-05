@@ -1,1 +1,55 @@
-spring.application.name=time-consumer
+logging:
+  level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.leon: ${LOGGING_LEVEL_APP:DEBUG}
+
+spring:
+  application:
+    name: time-consumer
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/timedb}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: ${SPRING_JPA_FORMAT_SQL:false}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:time-consumer}
+      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET:earliest}
+      enable-auto-commit: ${KAFKA_CONSUMER_ENABLE_AUTO_COMMIT:false}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      concurrency: ${KAFKA_CONCURRENCY:1}
+      topics:
+        time-topic: ${KAFKA_TOPIC_TIME_RECORDS:time-records}
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: ${KAFKA_USE_TYPE_HEADERS:true}
+        spring.json.type.mapping: timeEvent:com.leon.timeconsumer.model.TimeEventDTO
+        spring.json.value.default.type: com.leon.timeconsumer.model.TimeEventDTO
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: true
+    listener:
+      ack-mode: ${KAFKA_LISTENER_ACK_MODE:RECORD}
+
+app:
+  db:
+    monitor-interval-ms: ${DB_MONITOR_INTERVAL_MS:5000}
+server:
+  port: 8082
+
+retry:
+  policy:
+    database-check-interval-ms: 5000
+    max-backoff-ms: 30000
+    initial-backoff-ms: 1000

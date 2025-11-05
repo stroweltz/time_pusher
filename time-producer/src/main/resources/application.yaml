@@ -1,8 +1,16 @@
+logging:
+  level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.leon: ${LOGGING_LEVEL_APP:DEBUG}
+
 spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-
+    topics:
+      time-records: ${KAFKA_TOPIC_TIME_RECORDS:time-records}
+      time-records-dlt: ${KAFKA_TOPIC_TIME_RECORDS_DLT:time-records-dlt}
     producer:
+      id-prefix: ${KAFKA_PRODUCER_ID_PREFIX:time-service}
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       acks: ${KAFKA_PRODUCER_ACKS:all}
@@ -18,11 +26,9 @@ spring:
         delivery.timeout.ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:60000}
         linger.ms: ${KAFKA_PRODUCER_LINGER_MS:10}
 
-        # JSON Serializer Configuration
-        spring.json.add.type.headers: ${KAFKA_JSON_TYPE_HEADERS:false}
-        spring.json.type.mapping: ${KAFKA_JSON_TYPE_MAPPING:timeRecordEvent:com.example.timerecording.dto.TimeRecordEvent}
+        spring.json.add.type.headers: ${KAFKA_JSON_TYPE_HEADERS:true}
+        spring.json.type.mapping: ${KAFKA_JSON_TYPE_MAPPING:timeEvent:com.leon.timeproducer.model.TimeEventDTO}
 
-    # SSL/Security Configuration (optional)
     properties:
       security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
       ssl.truststore.location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:}
@@ -30,11 +36,10 @@ spring:
       sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
       sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
 
-# Custom Kafka Topics
-app:
-  kafka:
-    topics:
-      time-records: ${KAFKA_TOPIC_TIME_RECORDS:time-records}
-      time-records-dlt: ${KAFKA_TOPIC_TIME_RECORDS_DLT:time-records-dlt}
+  scheduler:
     producer:
-      id-prefix: ${KAFKA_PRODUCER_ID_PREFIX:time-service}
+      fixed-rate-ms: ${APP_PRODUCER_SCHEDULE_MS:1000}
+    enabled: ${APP_SCHEDULER_ENABLED:true}
+
+server:
+  port: 8081

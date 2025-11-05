@@ -17,7 +17,7 @@ public class TimeEventController {
 
     private final TimeEventService timeEventService;
 
-    @GetMapping("/ticks")
+    @GetMapping("/time-events")
     public ResponseEntity<Page<TimeEventEntity>> ticks(
             @PageableDefault(size = 20) Pageable pageable) {
 
